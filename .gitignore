@@ -1,0 +1,23 @@
+# Ignore build artifacts and generated files
+
+# Compiled binaries
+server.exe
+client.exe
+server
+client
+*.o
+*.obj
+
+# Storage and logs (auto-generated at runtime)
+storage/
+logs.txt
+
+# VS Code settings
+.vscode/
+
+# Windows artifacts
+Thumbs.db
+Desktop.ini
+
+# MinGW / compiler output
+*.stackdump
