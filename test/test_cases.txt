@@ -1,0 +1,31 @@
+BoardNova – Test Cases
+======================
+Generated: 2026-04-15
+System: Distributed Collaborative Whiteboard (C++ TCP Server + Console Client)
+
++------+------------------------------+--------------------------------------------+--------------------------------------------+--------+
+| Test | Description                  | Input                                      | Expected Output                            | Status |
++------+------------------------------+--------------------------------------------+--------------------------------------------+--------+
+|  T01 | Valid user login             | LOGIN alice pass123                        | "Welcome, alice!"                          | PASS   |
+|  T02 | Invalid password login       | LOGIN alice wrongpass                      | ERR: "Invalid credentials."               | PASS   |
+|  T03 | Login unknown user           | LOGIN ghost nopass                         | ERR: "Invalid credentials."               | PASS   |
+|  T04 | Create session (auth'd)      | CREATE_SESSION (user=alice)                | "Session created: session1"                | PASS   |
+|  T05 | Join existing session        | JOIN_SESSION session1 (user=bob)           | "Joined session: session1"                 | PASS   |
+|  T06 | Join non-existent session    | JOIN_SESSION session999 (user=bob)         | ERR: "Session not found or inactive"      | PASS   |
+|  T07 | Upload image to session      | UPLOAD_IMAGE board.txt [content]           | "Image saved: storage/session1_v1.txt"     | PASS   |
+|  T08 | View timeline (1 upload)     | VIEW_TIMELINE                              | "v1 -> storage/session1_v1.txt"            | PASS   |
+|  T09 | Add task to session          | ADD_TASK "Design wireframe"                | "Task added: Design wireframe"             | PASS   |
+|  T10 | Complete task                | COMPLETE_TASK "Design wireframe"           | "Task completed: Design wireframe"         | PASS   |
+|  T11 | Complete nonexistent task    | COMPLETE_TASK "Ghost task"                 | ERR: "Task not found: Ghost task"         | PASS   |
+|  T12 | Upload increments version    | UPLOAD_IMAGE x.txt (second upload)         | "Image saved: storage/session1_v2.txt"     | PASS   |
+|  T13 | View timeline (2 uploads)    | VIEW_TIMELINE                              | Lists v1 and v2                            | PASS   |
+|  T14 | End session (owner only)     | END_SESSION (user=alice, owner)            | "Session session1 ended and archived."     | PASS   |
+|  T15 | End session (non-owner)      | END_SESSION (user=bob, not owner)          | ERR: "Only session owner can end..."      | PASS   |
+|  T16 | Action before login          | CREATE_SESSION (unauthenticated)           | ERR: "Not authenticated..."               | PASS   |
+|  T17 | Multi-client simultaneous    | 2 clients connect & login concurrently     | Both receive welcome messages              | PASS   |
+|  T18 | List sessions (active)       | LIST_SESSIONS                              | Shows active session with owner info       | PASS   |
+|  T19 | Server logs to file          | Any action performed                       | Entry written to logs.txt with timestamp   | PASS   |
+|  T20 | State: invalid transition    | UPLOAD_IMAGE when not in session           | ERR: "Not in an active session."          | PASS   |
++------+------------------------------+--------------------------------------------+--------------------------------------------+--------+
+
+TOTAL: 20 tests — ALL PASS
