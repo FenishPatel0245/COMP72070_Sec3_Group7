@@ -22,7 +22,11 @@
 #endif
 
 #include <iostream>
-#include <thread>
+#ifdef _WIN32
+  #include <windows.h>
+#else
+  #include <thread>
+#endif
 #include <string>
 #include <sstream>
 #include <cstring>
@@ -52,6 +56,40 @@ void sendPacket(sock_t sock, const Packet& p) {
     send(sock, data.c_str(), (int)data.size(), 0);
 }
 
+// ── Send HTTP Response ──────────────────────────────────────
+void sendHttpResponse(sock_t sock, int code, const std::string& body) {
+    std::string status = (code == 200) ? "200 OK" : (code == 204 ? "204 No Content" : "401 Unauthorized");
+    std::ostringstream oss;
+    oss << "HTTP/1.1 " << status << "\r\n"
+        << "Access-Control-Allow-Origin: *\r\n"
+        << "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
+        << "Access-Control-Allow-Headers: Content-Type\r\n"
+        << "Content-Type: application/json\r\n"
+        << "Content-Length: " << body.size() << "\r\n"
+        << "Connection: close\r\n\r\n"
+        << body;
+    std::string res = oss.str();
+    send(sock, res.c_str(), (int)res.size(), 0);
+}
+
+// ── Simple JSON Parser Helper ──────────────────────────────
+std::string getJsonVal(const std::string& json, const std::string& key) {
+    std::string target = "\"" + key + "\":\"";
+    size_t start = json.find(target);
+    if (start == std::string::npos) {
+        // Try without quotes on values (numeric/bool)
+        target = "\"" + key + "\":";
+        start = json.find(target);
+        if (start == std::string::npos) return "";
+        start += target.size();
+    } else {
+        start += target.size();
+    }
+    size_t end = json.find_first_of("\",}", start);
+    if (end == std::string::npos) return "";
+    return json.substr(start, end - start);
+}
+
 // ── Receive one line ───────────────────────────────────────
 std::string recvLine(sock_t sock) {
     std::string result;
@@ -65,8 +103,22 @@ std::string recvLine(sock_t sock) {
     return result;
 }
 
+// ── Struct for thread params ───────────────────────────────
+struct ClientInfo {
+    sock_t sock;
+    int id;
+};
+
 // ── Handle one client connection ───────────────────────────
+#ifdef _WIN32
+DWORD WINAPI handleClient(LPVOID lpParam) {
+    ClientInfo* info = (ClientInfo*)lpParam;
+    sock_t clientSock = info->sock;
+    int clientId = info->id;
+    delete info;
+#else
 void handleClient(sock_t clientSock, int clientId) {
+#endif
     std::string cid = "Client#" + std::to_string(clientId);
     LOG_INFO(cid + " connected.");
 
@@ -81,6 +133,62 @@ void handleClient(sock_t clientSock, int clientId) {
             break;
         }
 
+        // --- HTTP Detection ---
+        if (raw.find("OPTIONS") == 0) {
+            sendHttpResponse(clientSock, 204, "");
+            break; 
+        }
+
+        if (raw.find("POST") == 0 || raw.find("GET") == 0) {
+            std::string path = raw.substr(raw.find(" ") + 1);
+            path = path.substr(0, path.find(" "));
+            
+            // Read headers until \r\n\r\n
+            int contentLength = 0;
+            while (true) {
+                std::string header = recvLine(clientSock);
+                if (header == "\r\n" || header == "\n" || header.empty()) break;
+                if (header.find("Content-Length:") != std::string::npos) {
+                    contentLength = std::stoi(header.substr(15));
+                }
+            }
+
+            // Read Body
+            std::string body;
+            for(int i=0; i<contentLength; i++) {
+                char c; recv(clientSock, &c, 1, 0);
+                body += c;
+            }
+
+            // Route HTTP
+            if (path == "/login") {
+                std::string user = getJsonVal(body, "username");
+                std::string pass = getJsonVal(body, "password");
+                if (SessionManager::instance().authenticate(user, pass)) {
+                    LOG_INFO("[HTTP LOGIN] user '" + user + "' logged in via web.");
+                    sendHttpResponse(clientSock, 200, "{\"status\":\"ok\"}");
+                } else {
+                    sendHttpResponse(clientSock, 401, "{\"status\":\"fail\"}");
+                }
+            } else if (path == "/draw") {
+                LOG_INFO("[HTTP EVENT] Draw event from " + getJsonVal(body, "user"));
+                sendHttpResponse(clientSock, 200, "{\"status\":\"ok\"}");
+            } else if (path == "/clear") {
+                LOG_INFO("[HTTP EVENT] Clear board by " + getJsonVal(body, "user"));
+                sendHttpResponse(clientSock, 200, "{\"status\":\"ok\"}");
+            } else if (path == "/undo") {
+                LOG_INFO("[HTTP EVENT] Undo action by " + getJsonVal(body, "user"));
+                sendHttpResponse(clientSock, 200, "{\"status\":\"ok\"}");
+            } else if (path == "/save") {
+                LOG_INFO("[HTTP EVENT] Board save by " + getJsonVal(body, "user"));
+                sendHttpResponse(clientSock, 200, "{\"status\":\"ok\"}");
+            } else {
+                sendHttpResponse(clientSock, 200, "{\"status\":\"unknown_route\"}");
+            }
+            break; // HTTP is usually one-request-per-conn in this simple case
+        }
+
+        // --- Legacy Packet Handling ---
         Packet pkt;
         try {
             pkt = deserializePacket(raw);
@@ -249,6 +357,9 @@ void handleClient(sock_t clientSock, int clientId) {
 
     CLOSE_SOCK(clientSock);
     LOG_INFO(cid + " connection closed.");
+#ifdef _WIN32
+    return 0;
+#endif
 }
 
 // ── Main ───────────────────────────────────────────────────
@@ -301,12 +412,17 @@ int main() {
         sock_t clientSock = accept(serverSock, (sockaddr*)&clientAddr, &addrLen);
         if (clientSock == SOCK_INVALID) continue;
 
-        char ipBuf[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &clientAddr.sin_addr, ipBuf, sizeof(ipBuf));
-        LOG_INFO("New connection from " + std::string(ipBuf) +
+        std::string ipStr = inet_ntoa(clientAddr.sin_addr);
+        LOG_INFO("New connection from " + ipStr +
                  " assigned ID=" + std::to_string(++clientId));
 
+#ifdef _WIN32
+        ClientInfo* info = new ClientInfo{clientSock, clientId};
+        HANDLE hThread = CreateThread(NULL, 0, handleClient, info, 0, NULL);
+        if (hThread) CloseHandle(hThread);
+#else
         std::thread(handleClient, clientSock, clientId).detach();
+#endif
     }
 
     CLOSE_SOCK(serverSock);

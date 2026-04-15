@@ -43,6 +43,10 @@ const int   SERVER_PORT = 8080;
 #define MAGENTA "\033[95m"
 
 // ── Helpers ────────────────────────────────────────────────
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+
 void enableAnsi() {
 #ifdef _WIN32
     // Enable VT processing for colours on Windows
@@ -110,7 +114,7 @@ bool connectToServer() {
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port   = htons(SERVER_PORT);
-    inet_pton(AF_INET, SERVER_IP, &serverAddr.sin_addr);
+    serverAddr.sin_addr.s_addr = inet_addr(SERVER_IP);
 
     return (connect(gSock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == 0);
 }

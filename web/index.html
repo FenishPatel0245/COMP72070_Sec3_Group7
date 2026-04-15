@@ -1,41 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BoardNova – Collaborative Whiteboard</title>
-  <meta name="description" content="BoardNova is a distributed collaborative whiteboard application." />
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoardNova - Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <div class="logo">
-      <span class="logo-icon">◈</span>
-      <span class="logo-text">BoardNova</span>
+    <div class="app-container">
+        <!-- Top Navbar -->
+        <nav class="navbar">
+            <div class="nav-left">
+                <div class="logo">BoardNova</div>
+                <div class="divider"></div>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span id="connectionStatus">Connected to Server</span>
+                </div>
+            </div>
+            
+            <div class="nav-right">
+                <div class="user-info">
+                    <span id="displayUsername">Guest</span>
+                    <div class="avatar"></div>
+                </div>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
+            </div>
+        </nav>
+
+        <main class="workspace">
+            <!-- Sidebar Toolbar -->
+            <aside class="toolbar">
+                <div class="tool-section">
+                    <p class="tool-label">Tools</p>
+                    <div class="tool-group">
+                        <button class="tool-btn active" id="penTool" title="Pen">🖋️</button>
+                        <button class="tool-btn" id="eraserTool" title="Eraser">🧽</button>
+                    </div>
+                </div>
+
+                <div class="tool-section">
+                    <p class="tool-label">Appearance</p>
+                    <div class="tool-group col">
+                        <div class="picker-item">
+                            <label>Color</label>
+                            <input type="color" id="colorPicker" value="#38bdf8">
+                        </div>
+                        <div class="picker-item">
+                            <label>Size: <span id="sizeVal">5</span>px</label>
+                            <input type="range" id="sizePicker" min="1" max="50" value="5">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tool-section actions">
+                    <button class="btn-action" id="undoBtn">↩️ Undo</button>
+                    <button class="btn-action" id="clearBtn">🧹 Clear</button>
+                    <button class="btn-primary" id="saveBtn">💾 Save PNG</button>
+                </div>
+            </aside>
+
+            <!-- Drawing Area -->
+            <section class="canvas-wrapper">
+                <canvas id="whiteboard"></canvas>
+            </section>
+        </main>
     </div>
-    <nav class="toolbar">
-      <button id="toolPen"    class="tool active" title="Pen">✏️ Pen</button>
-      <button id="toolEraser" class="tool"        title="Eraser">🧹 Eraser</button>
-      <label class="tool-label">
-        Color:
-        <input type="color" id="colorPicker" value="#00ffe7" />
-      </label>
-      <label class="tool-label">
-        Size:
-        <input type="range" id="sizeSlider" min="1" max="40" value="4" />
-        <span id="sizeDisplay">4px</span>
-      </label>
-      <button id="btnClear"  class="btn-action danger">🗑 Clear</button>
-      <button id="btnSave"   class="btn-action">💾 Save PNG</button>
-      <button id="btnUndo"   class="btn-action">↩ Undo</button>
-    </nav>
-  </header>
 
-  <main>
-    <canvas id="whiteboard"></canvas>
-    <div class="hint">Draw anywhere on the canvas!</div>
-  </main>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

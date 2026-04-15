@@ -1,145 +1,161 @@
-'use strict';
+// BoardNova - Workboard Logic
+const canvas = document.getElementById('whiteboard');
+const ctx = canvas.getContext('2d');
+const colorPicker = document.getElementById('colorPicker');
+const sizePicker = document.getElementById('sizePicker');
+const sizeVal = document.getElementById('sizeVal');
+const penTool = document.getElementById('penTool');
+const eraserTool = document.getElementById('eraserTool');
+const displayUsername = document.getElementById('displayUsername');
+const connectionStatus = document.getElementById('connectionStatus');
 
-// ── Canvas setup ──────────────────────────────────────────
-const canvas  = document.getElementById('whiteboard');
-const ctx     = canvas.getContext('2d');
-const hint    = document.querySelector('.hint');
+let drawing = false;
+let currentMode = 'pen';
+let history = [];
+let step = -1;
+
+// --- Initialize ---
+window.onload = () => {
+    const user = localStorage.getItem('boardnova_user');
+    if (!user) {
+        window.location.href = 'login.html';
+        return;
+    }
+    displayUsername.innerText = user;
+
+    resizeCanvas();
+    saveState();
+};
 
 function resizeCanvas() {
-  // Preserve drawing when resizing
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  canvas.width  = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
-  // Restore dark background
-  ctx.fillStyle = '#0a0a12';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.putImageData(imgData, 0, 0);
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
-// ── State ─────────────────────────────────────────────────
-let drawing    = false;
-let tool       = 'pen';   // 'pen' | 'eraser'
-let color      = '#00ffe7';
-let lineWidth  = 4;
-let lastX      = 0;
-let lastY      = 0;
-
-// Undo stack – store canvas snapshots
-const undoStack = [];
-const MAX_UNDO  = 30;
-
-function saveSnapshot() {
-  if (undoStack.length >= MAX_UNDO) undoStack.shift();
-  undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+    // Make canvas white/clean
+    canvas.width = 1200;
+    canvas.height = 800;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-// ── Tool controls ─────────────────────────────────────────
-document.getElementById('toolPen').addEventListener('click', () => {
-  tool = 'pen';
-  document.getElementById('toolPen').classList.add('active');
-  document.getElementById('toolEraser').classList.remove('active');
-  canvas.style.cursor = 'crosshair';
-});
-
-document.getElementById('toolEraser').addEventListener('click', () => {
-  tool = 'eraser';
-  document.getElementById('toolEraser').classList.add('active');
-  document.getElementById('toolPen').classList.remove('active');
-  canvas.style.cursor = 'cell';
-});
-
-document.getElementById('colorPicker').addEventListener('input', e => {
-  color = e.target.value;
-});
-
-const sizeSlider  = document.getElementById('sizeSlider');
-const sizeDisplay = document.getElementById('sizeDisplay');
-sizeSlider.addEventListener('input', e => {
-  lineWidth = parseInt(e.target.value, 10);
-  sizeDisplay.textContent = lineWidth + 'px';
-});
-
-document.getElementById('btnClear').addEventListener('click', () => {
-  saveSnapshot();
-  ctx.fillStyle = '#0a0a12';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-});
-
-document.getElementById('btnUndo').addEventListener('click', () => {
-  if (undoStack.length === 0) return;
-  ctx.putImageData(undoStack.pop(), 0, 0);
-});
-
-document.getElementById('btnSave').addEventListener('click', () => {
-  const link    = document.createElement('a');
-  link.download = 'boardnova_whiteboard.png';
-  link.href     = canvas.toDataURL('image/png');
-  link.click();
-});
-
-// ── Drawing ───────────────────────────────────────────────
-function getPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  if (e.touches) {
-    return {
-      x: e.touches[0].clientX - rect.left,
-      y: e.touches[0].clientY - rect.top
-    };
-  }
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+// --- Drawing Logic ---
+function startDrawing(e) {
+    drawing = true;
+    draw(e);
 }
 
-function startDraw(e) {
-  e.preventDefault();
-  drawing = true;
-  const { x, y } = getPos(e);
-  lastX = x; lastY = y;
-  saveSnapshot();
-  // Hide hint on first draw
-  hint.classList.add('hidden');
+function stopDrawing() {
+    if (drawing) {
+        drawing = false;
+        ctx.beginPath();
+        saveState();
+        sendToServer('draw');
+    }
 }
 
 function draw(e) {
-  e.preventDefault();
-  if (!drawing) return;
-  const { x, y } = getPos(e);
+    if (!drawing) return;
 
-  ctx.beginPath();
-  ctx.moveTo(lastX, lastY);
-  ctx.lineTo(x, y);
-  ctx.strokeStyle = (tool === 'eraser') ? '#0a0a12' : color;
-  ctx.lineWidth   = (tool === 'eraser') ? lineWidth * 4 : lineWidth;
-  ctx.lineCap     = 'round';
-  ctx.lineJoin    = 'round';
-  ctx.globalAlpha = (tool === 'eraser') ? 1 : 0.92;
-  ctx.stroke();
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+    const y = (e.clientY || e.touches[0].clientY) - rect.top;
 
-  // Glow for pen
-  if (tool === 'pen') {
-    ctx.shadowColor = color;
-    ctx.shadowBlur  = 8;
+    ctx.lineWidth = sizePicker.value;
+    ctx.strokeStyle = currentMode === 'eraser' ? '#FFFFFF' : colorPicker.value;
+
+    ctx.lineTo(x, y);
     ctx.stroke();
-    ctx.shadowBlur  = 0;
-  }
-
-  lastX = x; lastY = y;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
 }
 
-function stopDraw(e) {
-  e.preventDefault();
-  drawing = false;
-  ctx.globalAlpha = 1;
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+canvas.addEventListener('touchend', stopDrawing);
+
+// --- Toolbar Controls ---
+penTool.onclick = () => {
+    currentMode = 'pen';
+    penTool.classList.add('active');
+    eraserTool.classList.remove('active');
+};
+
+eraserTool.onclick = () => {
+    currentMode = 'eraser';
+    eraserTool.classList.add('active');
+    penTool.classList.remove('active');
+};
+
+sizePicker.oninput = () => {
+    sizeVal.innerText = sizePicker.value;
+};
+
+// --- History / Undo ---
+function saveState() {
+    step++;
+    if (step < history.length) history.length = step;
+    history.push(canvas.toDataURL());
 }
 
-// Mouse events
-canvas.addEventListener('mousedown',  startDraw);
-canvas.addEventListener('mousemove',  draw);
-canvas.addEventListener('mouseup',    stopDraw);
-canvas.addEventListener('mouseleave', stopDraw);
+function undo() {
+    if (step > 0) {
+        step--;
+        let canvasPic = new Image();
+        canvasPic.src = history[step];
+        canvasPic.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(canvasPic, 0, 0);
+        };
+        sendToServer('undo');
+    }
+}
 
-// Touch events
-canvas.addEventListener('touchstart', startDraw, { passive: false });
-canvas.addEventListener('touchmove',  draw,      { passive: false });
-canvas.addEventListener('touchend',   stopDraw,  { passive: false });
+function clearCanvas() {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveState();
+    sendToServer('clear');
+}
+
+function saveCanvas() {
+    const link = document.createElement('a');
+    link.download = `boardnova_${Date.now()}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+    sendToServer('save');
+}
+
+// --- Server Sync ---
+async function sendToServer(action) {
+    const user = localStorage.getItem('boardnova_user');
+    try {
+        const response = await fetch(`http://localhost:8080/${action}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action, user: user, timestamp: Date.now() })
+        });
+        
+        if (response.ok) {
+            connectionStatus.innerText = "Connected to Server";
+            document.querySelector('.status-dot').style.backgroundColor = '#10b981';
+            document.querySelector('.status-dot').style.boxShadow = '0 0 8px #10b981';
+        }
+    } catch (err) {
+        connectionStatus.innerText = "Server Offline";
+        document.querySelector('.status-dot').style.backgroundColor = '#f87171';
+        document.querySelector('.status-dot').style.boxShadow = '0 0 8px #f87171';
+    }
+}
+
+function logout() {
+    localStorage.removeItem('boardnova_user');
+    window.location.href = 'login.html';
+}
+
+// Expose functions to buttons
+document.getElementById('logoutBtn').onclick = logout;
+document.getElementById('undoBtn').onclick = undo;
+document.getElementById('clearBtn').onclick = clearCanvas;
+document.getElementById('saveBtn').onclick = saveCanvas;

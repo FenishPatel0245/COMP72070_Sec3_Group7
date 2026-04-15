@@ -6,6 +6,10 @@
 #include <iostream>
 #include <sstream>
 
+#ifdef _WIN32
+    #include <windows.h>
+#endif
+
 class Logger {
 public:
     static Logger& instance() {
@@ -14,13 +18,18 @@ public:
     }
 
     void log(const std::string& level, const std::string& message) {
-        std::lock_guard<std::mutex> lock(mtx_);
+#ifdef _WIN32
+        EnterCriticalSection(&cs_);
+#endif
         std::string entry = "[" + timestamp() + "][" + level + "] " + message;
         std::cout << entry << std::endl;
         if (file_.is_open()) {
             file_ << entry << std::endl;
             file_.flush();
         }
+#ifdef _WIN32
+        LeaveCriticalSection(&cs_);
+#endif
     }
 
     void info(const std::string& msg)  { log("INFO ", msg); }
@@ -30,11 +39,19 @@ public:
 private:
     Logger() {
         file_.open("logs.txt", std::ios::app);
+#ifdef _WIN32
+        InitializeCriticalSection(&cs_);
+#endif
         if (!file_.is_open()) {
             std::cerr << "[Logger] Warning: could not open logs.txt for writing.\n";
         }
     }
-    ~Logger() { if (file_.is_open()) file_.close(); }
+    ~Logger() { 
+        if (file_.is_open()) file_.close(); 
+#ifdef _WIN32
+        DeleteCriticalSection(&cs_);
+#endif
+    }
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
@@ -46,7 +63,11 @@ private:
     }
 
     std::ofstream file_;
-    std::mutex    mtx_;
+#ifdef _WIN32
+    CRITICAL_SECTION cs_;
+#else
+    std::mutex    mtx_; // Fallback for non-windows
+#endif
 };
 
 // Convenience macros
