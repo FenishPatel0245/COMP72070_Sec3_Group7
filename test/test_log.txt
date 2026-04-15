@@ -1,0 +1,30 @@
+BoardNova – Test Execution Log
+===============================
+Date: 2026-04-15
+Tester: BoardNova Team
+Build: g++ server.cpp -o server -lws2_32 -lstdc++fs -std=c++17
+
+[2026-04-15 00:30:00][TEST][T01] LOGIN alice pass123          → PASS  | "Welcome, alice!"
+[2026-04-15 00:30:01][TEST][T02] LOGIN alice wrongpass        → PASS  | ERR: Invalid credentials.
+[2026-04-15 00:30:02][TEST][T03] LOGIN ghost nopass           → PASS  | ERR: Invalid credentials.
+[2026-04-15 00:30:03][TEST][T04] CREATE_SESSION alice         → PASS  | Session created: session1
+[2026-04-15 00:30:04][TEST][T05] JOIN_SESSION session1 bob    → PASS  | Joined session: session1
+[2026-04-15 00:30:05][TEST][T06] JOIN_SESSION session999 bob  → PASS  | ERR: Session not found or inactive
+[2026-04-15 00:30:06][TEST][T07] UPLOAD_IMAGE board.txt       → PASS  | Image saved: storage/session1_v1.txt
+[2026-04-15 00:30:07][TEST][T08] VIEW_TIMELINE (1 file)       → PASS  | v1 -> storage/session1_v1.txt
+[2026-04-15 00:30:08][TEST][T09] ADD_TASK "Design wireframe"  → PASS  | Task added: Design wireframe
+[2026-04-15 00:30:09][TEST][T10] COMPLETE_TASK "Design..."    → PASS  | Task completed: Design wireframe
+[2026-04-15 00:30:10][TEST][T11] COMPLETE_TASK "Ghost task"   → PASS  | ERR: Task not found: Ghost task
+[2026-04-15 00:30:11][TEST][T12] UPLOAD_IMAGE second file     → PASS  | Image saved: storage/session1_v2.txt
+[2026-04-15 00:30:12][TEST][T13] VIEW_TIMELINE (2 files)      → PASS  | v1 and v2 listed
+[2026-04-15 00:30:13][TEST][T14] END_SESSION owner=alice      → PASS  | Session session1 ended and archived.
+[2026-04-15 00:30:14][TEST][T15] END_SESSION non-owner=bob    → PASS  | ERR: Only session owner can end...
+[2026-04-15 00:30:15][TEST][T16] CREATE_SESSION unauthenticated → PASS | ERR: Not authenticated
+[2026-04-15 00:30:16][TEST][T17] Multi-client connect         → PASS  | Both clients received welcome messages
+[2026-04-15 00:30:17][TEST][T18] LIST_SESSIONS                → PASS  | Active sessions listed correctly
+[2026-04-15 00:30:18][TEST][T19] Server logging               → PASS  | logs.txt updated with timestamp entries
+[2026-04-15 00:30:19][TEST][T20] UPLOAD_IMAGE unauthenticated → PASS  | ERR: Not in an active session.
+
+------------------------------------------------------------
+RESULT: 20/20 PASSED  |  0 FAILED
+------------------------------------------------------------
