@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoardNova – Collaborative Whiteboard</title>
+  <meta name="description" content="BoardNova is a distributed collaborative whiteboard application." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">BoardNova</span>
+    </div>
+    <nav class="toolbar">
+      <button id="toolPen"    class="tool active" title="Pen">✏️ Pen</button>
+      <button id="toolEraser" class="tool"        title="Eraser">🧹 Eraser</button>
+      <label class="tool-label">
+        Color:
+        <input type="color" id="colorPicker" value="#00ffe7" />
+      </label>
+      <label class="tool-label">
+        Size:
+        <input type="range" id="sizeSlider" min="1" max="40" value="4" />
+        <span id="sizeDisplay">4px</span>
+      </label>
+      <button id="btnClear"  class="btn-action danger">🗑 Clear</button>
+      <button id="btnSave"   class="btn-action">💾 Save PNG</button>
+      <button id="btnUndo"   class="btn-action">↩ Undo</button>
+    </nav>
+  </header>
+
+  <main>
+    <canvas id="whiteboard"></canvas>
+    <div class="hint">Draw anywhere on the canvas!</div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
